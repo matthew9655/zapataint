@@ -4,7 +4,7 @@ from operator import itemgetter
 import numpy as np
 import torch
 
-from tracking.improved_types import (
+from utils import (
     UnionFind,
     get_yaw,
     intersect_point,
