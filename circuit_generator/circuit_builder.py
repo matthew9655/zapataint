@@ -2,9 +2,9 @@ import tequila as tq
 import numpy as np
 import numpy.random as npr
 from tequila import gates as tq_g
-import matplotlib.pyplot as plt
 from scipy.stats import norm
 import random
+import sys
 
 class CircuitBuilder():
     def __init__(self, qubits, max_params):
@@ -30,6 +30,7 @@ class CircuitBuilder():
 
     
     def gen_gates(self, len_gates):
+        "randomly sample the gates to add to the circuit"
         gate_index = np.random.randint(0, len_gates, (self.max_params, self.qubits))
         cnot_qubit_selector = np.zeros((self.max_params, self.qubits), dtype=np.int8)
 
@@ -42,6 +43,7 @@ class CircuitBuilder():
 
     
     def create(self):
+        "create the circuit"
         gates = [self.add_hadamard, self.add_phase, self.add_cnot]
 
         gate_index, cnot_selector = self.gen_gates(len(gates))
@@ -56,11 +58,13 @@ class CircuitBuilder():
 
 
     def gen_y(self):
+        "concatenate the matrix representation of the circuit for conditional input to Masked Autoregressive Flow"
         y = np.vstack((self.H, self.S, self.CNOT))
         reshape_y = np.reshape(y, (3, self.qubits, self.max_params))
         return reshape_y
     
     def gen_x_full_gaussian(self, num_samples):
+        "generate dataset for full gaussian representations"
         x = np.zeros((self.qubits, num_samples))
         cond_probs = np.asarray(self.get_con_prob()).clip(0.08, 0.92)
         for i, prob in enumerate(cond_probs):
@@ -71,6 +75,7 @@ class CircuitBuilder():
         return x
     
     def gen_x_half_gaussian(self, num_samples):
+        "generate dataset for half gaussian representations"
         x = np.zeros((self.qubits, num_samples))
         cond_probs = np.asarray(self.get_con_prob()).clip(0.04, 0.96)
         for i, prob in enumerate(cond_probs):
@@ -103,12 +108,14 @@ class CircuitBuilder():
 
     
     def get_wfn(self, samples=None):
+        "calculate the wavefunction of the circuit "
         initial_param = {var:0.1 for var in self.circuit.extract_variables()}
         wfn = tq.simulate(self.circuit, variables=initial_param, samples=None, backend='qulacs')
         self.wfn = wfn
         return wfn
     
     def get_prob(self, samples=None):
+        "calculate the probability of each measurement outcome"
         self.get_wfn(samples=samples)
         probs = np.zeros(2 ** self.qubits, dtype=complex)
         for i in range(self.qubits ** 2):
@@ -122,10 +129,11 @@ class CircuitBuilder():
 
     
     def get_con_prob(self):
-        # splitting bits to calculate cond probs can be seen as a binary tree problem
-        # we solve for the conditional probabilties of 0s on each qubit
-        # for example with 3 qubits: |1~~>, |~1~>, |~~1> 
-
+        """
+        splitting bits to calculate cond probs can be seen as a binary tree problem
+        we solve for the conditional probabilties of 0s on each qubit
+        for example with 3 qubits: |1~~>, |~1~>, |~~1> 
+        """
         probs = self.get_prob()
 
         def recur(lst):
@@ -149,38 +157,24 @@ class CircuitBuilder():
 
         cond_probs = recur(probs)
         return cond_probs
-
-    def get_expect(self, samples=None):
-        ham = tq.paulis.Z(0)*tq.paulis.Z(1)#*tq.paulis.Z(2)*tq.paulis.Z(3)
-
-        #initialize parameters dictionary again
-        initial_param = {var:0.1 for var in self.circuit.extract_variables()}
-
-        #creating the Expectation Value object
-        Expval = tq.ExpectationValue(H=ham, U=self.circuit)
-        sampled_wfn = tq.simulate(Expval, variables=initial_param, samples=samples, backend='qulacs')
-        return sampled_wfn
     
 if __name__ == "__main__":
-    num_qubits = 3
-    cb = CircuitBuilder(num_qubits, 10)
+    num_qubits = int(sys.argv[1])
+    max_params = int(sys.argv[2])
+    num_samples = int(sys.argv[3])
+    cb = CircuitBuilder(num_qubits, max_params)
     cb.create()
-    wfn = cb.get_wfn()
+    print('probability of each measurement outcome e,g 000, 001 ...')
     probs = cb.get_prob()
     print(probs)
+    print('conditional probability of each individual qubit being state 1 in the z basis')
     cond_probs = cb.get_con_prob()
     print(cond_probs)
-    test = cb.gen_x(1000)
+    x, y = cb.gen_dataset_sample(num_samples)
         
-
-    for i, dis in enumerate(test):
-        plt.figure()
-        plt.hist(dis, bins=100)
-        plt.savefig(f"qubit_{i}")
-        plt.close()
-        plt.xlim(-5, 5)
+    for i, dis in enumerate(x):
         test1 = (np.where((dis >= 1) | (dis <= -1), 1, 0))
-        print(sum(test1) / 10000)
+        print(f"qubit-{i}: {sum(test1) / num_samples}")
 
 
 

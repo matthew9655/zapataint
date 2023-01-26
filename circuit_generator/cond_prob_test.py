@@ -1,5 +1,5 @@
 import pytest
-from ..circuit_builder import CircuitBuilder 
+from circuit_builder import CircuitBuilder 
 from collections import defaultdict
 
 def gen_index_dic(num_qubit):
