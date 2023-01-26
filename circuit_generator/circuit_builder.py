@@ -16,6 +16,8 @@ class CircuitBuilder():
         self.CNOT = np.zeros((qubits, max_params))
         self.wfn = None
 
+        self.create()
+
     def add_hadamard(self, index, qubit_num):
         self.circuit += tq_g.H(qubit_num)
         self.H[qubit_num, index] = 1
@@ -163,7 +165,6 @@ if __name__ == "__main__":
     max_params = int(sys.argv[2])
     num_samples = int(sys.argv[3])
     cb = CircuitBuilder(num_qubits, max_params)
-    cb.create()
     print('probability of each measurement outcome e,g 000, 001 ...')
     probs = cb.get_prob()
     print(probs)
