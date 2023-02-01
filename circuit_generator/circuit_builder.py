@@ -16,6 +16,8 @@ class CircuitBuilder():
         self.CNOT = np.zeros((qubits, max_gates))
         self.wfn = None
 
+        self.create()
+
     def add_hadamard(self, index, qubit_num):
         self.circuit += tq_g.H(qubit_num)
         self.H[qubit_num, index] = 1
