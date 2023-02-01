@@ -7,13 +7,13 @@ import random
 import sys
 
 class CircuitBuilder():
-    def __init__(self, qubits, max_params):
+    def __init__(self, qubits, max_gates):
         self.circuit = tq.QCircuit()
         self.qubits = qubits
-        self.max_params = max_params
-        self.H = np.zeros((qubits, max_params))
-        self.S = np.zeros((qubits, max_params))
-        self.CNOT = np.zeros((qubits, max_params))
+        self.max_gates = max_gates
+        self.H = np.zeros((qubits, max_gates))
+        self.S = np.zeros((qubits, max_gates))
+        self.CNOT = np.zeros((qubits, max_gates))
         self.wfn = None
 
     def add_hadamard(self, index, qubit_num):
@@ -31,10 +31,10 @@ class CircuitBuilder():
     
     def gen_gates(self, len_gates):
         "randomly sample the gates to add to the circuit"
-        gate_index = np.random.randint(0, len_gates, (self.max_params, self.qubits))
-        cnot_qubit_selector = np.zeros((self.max_params, self.qubits), dtype=np.int8)
+        gate_index = np.random.randint(0, len_gates, (self.max_gates, self.qubits))
+        cnot_qubit_selector = np.zeros((self.max_gates, self.qubits), dtype=np.int8)
 
-        for i in range(self.max_params):
+        for i in range(self.max_gates):
             for j in range(self.qubits):
                 if gate_index[i, j] == 2:
                     cnot_qubit_selector[i, j] = random.choice(list(set([x for x in range(0, self.qubits)]) - set([j])))
@@ -48,7 +48,7 @@ class CircuitBuilder():
 
         gate_index, cnot_selector = self.gen_gates(len(gates))
 
-        for i in range(self.max_params):
+        for i in range(self.max_gates):
             for j in range(self.qubits):
                     gate_num = gate_index[i, j]
                     if gate_num == 2:
@@ -60,7 +60,7 @@ class CircuitBuilder():
     def gen_y(self):
         "concatenate the matrix representation of the circuit for conditional input to Masked Autoregressive Flow"
         y = np.vstack((self.H, self.S, self.CNOT))
-        reshape_y = np.reshape(y, (3, self.qubits, self.max_params))
+        reshape_y = np.reshape(y, (3, self.qubits, self.max_gates))
         return reshape_y
     
     def gen_x_full_gaussian(self, num_samples):
@@ -160,9 +160,9 @@ class CircuitBuilder():
     
 if __name__ == "__main__":
     num_qubits = int(sys.argv[1])
-    max_params = int(sys.argv[2])
+    max_gates = int(sys.argv[2])
     num_samples = int(sys.argv[3])
-    cb = CircuitBuilder(num_qubits, max_params)
+    cb = CircuitBuilder(num_qubits, max_gates)
     cb.create()
     print('probability of each measurement outcome e,g 000, 001 ...')
     probs = cb.get_prob()
